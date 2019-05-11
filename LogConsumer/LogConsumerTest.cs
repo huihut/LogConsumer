@@ -27,7 +27,7 @@ namespace HuiHut.LogConsumer
             WriteLog("[ " + id + " ] Thread is finished.");
         }
 
-        public static void WriteLog(string logContent)
+        static void WriteLog(string logContent)
         {
             LogConsumer.Instance.Write(logContent);
             Console.WriteLine(logContent);
