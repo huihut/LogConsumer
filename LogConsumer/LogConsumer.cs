@@ -30,7 +30,7 @@ namespace HuiHut.LogConsumer
         private Semaphore emptyCount = new Semaphore(BUFFER_SIZE, BUFFER_SIZE);
         private Mutex bufferMutex = new Mutex();
 
-        // 生产消费线程
+        // 消费线程：写日志
         private Thread consumerThread;
 
         // 单例
