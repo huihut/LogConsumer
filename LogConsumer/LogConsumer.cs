@@ -7,6 +7,9 @@ using System.Threading;
 
 namespace HuiHut.LogConsumer
 {
+    /// <summary>
+    /// Structure of each log entry
+    /// </summary>
     public class LogItem
     {
         public string time;
@@ -14,26 +17,35 @@ namespace HuiHut.LogConsumer
         public string content;
     }
 
+    /// <summary>
+    /// 
+    /// summary:
+    ///     Log consumer - A simple thread-safe log module that uses producer-consumer mode.
+    /// 
+    /// usage:
+    ///     HuiHut.LogConsumer.LogConsumer.Instance.Write("your log content");
+    ///     
+    /// </summary>
     public class LogConsumer
     {
-        // 日志文件流
-        private string logFileName = "LogConsumer-" + System.DateTime.Now.ToString("yyyyMMdd") + ".txt";
+        // Log file path and file name such as: @"D:\Log.txt", @"../Log.txt", @"Log.txt"
+        private string logFileName = @"LogConsumer-" + System.DateTime.Now.ToString("yyyyMMdd") + ".txt";
         private FileStream logFileStream;
         private StreamWriter logStreamWriter;
 
-        // 产品队列缓存
+        // Log cache queue
         private Queue<LogItem> queue = new Queue<LogItem>();
         static readonly int BUFFER_SIZE = 10;
 
-        // 同步标记
+        // Semaphore and Mutex
         private Semaphore fillCount = new Semaphore(0, BUFFER_SIZE);
         private Semaphore emptyCount = new Semaphore(BUFFER_SIZE, BUFFER_SIZE);
         private Mutex bufferMutex = new Mutex();
 
-        // 消费线程：写日志
+        // Consumer thread: write log
         private Thread consumerThread;
 
-        // 单例
+        // Singleton
         private static LogConsumer instance = new LogConsumer();
         public static LogConsumer Instance
         {
@@ -43,10 +55,10 @@ namespace HuiHut.LogConsumer
 
         private LogConsumer()
         {
-            // 打开文件流
+            // Open file stream
             OpenFileStream();
-            
-            // 日志消费者
+
+            // Log consumer
             consumerThread = new Thread(Consumer);
             consumerThread.Start();
         }
@@ -55,7 +67,41 @@ namespace HuiHut.LogConsumer
             CloseFileStream();
         }
 
-        // 打开文件流
+        /// <summary>
+        /// Producer: Write the log. 
+        /// Other modules write logs by calling this method.
+        /// </summary>
+        /// <param name="content">Log content</param>
+        public void Write(string content)
+        {
+            // Time of each log entry
+            string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+            // Get the module that calls Write ( namespace:class.method )
+            StackTrace trace = new StackTrace();
+            StackFrame frame = trace.GetFrame(1);
+            MethodBase method = frame.GetMethod();
+            string namespaceName = method.ReflectedType.Namespace;
+            string className = method.ReflectedType.Name;
+            string methodName = method.Name;
+            string module = namespaceName + ":" + className + "." + methodName;
+
+            // Production log entry
+            var item = ProduceItem(time, module, content);
+
+            // Waiting for production Permission
+            emptyCount.WaitOne();
+            bufferMutex.WaitOne();
+
+            // Put the product in the buffer
+            putItemIntoBuffer(item);
+            bufferMutex.ReleaseMutex();
+
+            // Release one to take permission
+            fillCount.Release();
+        }
+
+        // Open file stream
         private void OpenFileStream()
         {
             if (!string.IsNullOrEmpty(logFileName))
@@ -67,7 +113,7 @@ namespace HuiHut.LogConsumer
             }
         }
 
-        // 关闭文件流
+        // Close file stream
         private void CloseFileStream()
         {
             if (logStreamWriter != null)
@@ -82,68 +128,35 @@ namespace HuiHut.LogConsumer
                 logFileStream = null;
             }
         }
-
-        /// <summary>
-        /// 生产者：写日志。其他模块通过调用此方法写日志
-        /// </summary>
-        /// <param name="content">日志内容</param>
-        public void Write(string content)
-        {
-            // 日志项的时间
-            string time = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
-
-            // 调用本方法的模块（命名空间:类.方法）
-            StackTrace trace = new StackTrace();
-            StackFrame frame = trace.GetFrame(1);
-            MethodBase method = frame.GetMethod();
-            string namespaceName = method.ReflectedType.Namespace;
-            string className = method.ReflectedType.Name;
-            string methodName = method.Name;
-            string module = namespaceName + ":" + className + "." + methodName;
-
-            // 生产日志项
-            var item = ProduceItem(time, module, content);
-
-            // 还有生产权限时，进入下面的代码
-            emptyCount.WaitOne();
-            bufferMutex.WaitOne();
-
-            // 将产品放入buffer中
-            putItemIntoBuffer(item);
-            bufferMutex.ReleaseMutex();
-
-            // 释放一个拿去权限
-            fillCount.Release();
-        }
-
-        // 消费者
+        
+        // Consumer
         private void Consumer()
         {
             while (true)
             {
-                // 等待一个拿去权限
+                // Waiting for a permission
                 fillCount.WaitOne();
                 bufferMutex.WaitOne();
 
-                // 移除一个物品
+                // Remove an item
                 var item = removeItemFromBuffer();
                 bufferMutex.ReleaseMutex();
 
-                // 释放一个生产权限
+                // Release a production permission
                 emptyCount.Release();
 
-                // 消费：写日志
+                // Consumption: write a log
                 WriteLog(item);
             }
         }
 
-        // 将产品放入缓存中
+        // Put the product in the cache
         private void putItemIntoBuffer(LogItem item)
         {
             queue.Enqueue(item);
         }
 
-        // 从缓存中获取产品
+        // Get products from the cache
         private LogItem removeItemFromBuffer()
         {
             var item = queue.Peek();
@@ -151,14 +164,14 @@ namespace HuiHut.LogConsumer
             return item;
         }
 
-        // 生产产品
+        // Produce Item
         private LogItem ProduceItem(string logTime, string logModule, string logContent)
         {
             LogItem item = new LogItem() { time = logTime, module = logModule, content = logContent };
             return item;
         }
 
-        // 写日志到文件
+        // Write log to file
         private void WriteLog(LogItem logItem)
         {
             if (logStreamWriter == null)
