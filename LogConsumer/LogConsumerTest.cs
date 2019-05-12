@@ -31,7 +31,7 @@ namespace HuiHut.LogConsumer
                 WriteLog("[ " + id + " ] index = " + i);
             }
 
-            // Each thread writes a log of the end of the thread.
+            // Each thread writes a finished log.
             WriteLog("[ " + id + " ] Thread is finished.");
         }
 
