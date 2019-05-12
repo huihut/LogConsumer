@@ -1,11 +1,30 @@
-## Build & Run
+# LogConsumer
 
-```
-dotnet build
-dotnet .\LogConsumer\bin\Debug\netcoreapp2.1\LogConsumer.dll
-```
+A simple thread-safe log module that uses producer-consumer mode.
 
-## LogFile
+It can be used in **.NET Framework** and **.Net Core**.
+
+## Use LogConsumer in your project
+
+1. Add [LogConsumer.cs](https://github.com/huihut/LogConsumer/blob/master/LogConsumer/LogConsumer.cs) to your project
+2. Modify the `logFileName` in `LogConsumer.cs` to your path and file name
+2. Use it where you need to output the log
+    ```cs
+    HuiHut.LogConsumer.LogConsumer.Instance.Write("your log content");
+    ```
+
+## Build & Run this project
+
+* Command
+    ```
+    dotnet build
+    dotnet .\LogConsumer\bin\Debug\netcoreapp2.1\LogConsumer.dll
+    ```
+* Visual Studio  
+    1. Open `LogConsumer.sln` with Visual Studio  
+    2. Build & Run
+
+## Log file example
 
 <details><summary>LogConsumer-20190510.txt</summary>
 
